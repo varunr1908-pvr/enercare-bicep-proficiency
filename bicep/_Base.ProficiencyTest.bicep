@@ -12,29 +12,23 @@ param environment string
 @description('On-premises IP CIDR ranges allowed')
 param onPremIpRanges array
 
-// Create the resource group
+// Create (or ensure) the resource group
 resource rg 'Microsoft.Resources/resourceGroups@2022-09-01' = {
   name: rgName
   location: location
 }
 
-// Create Log Analytics Workspace
-resource law 'Microsoft.OperationalInsights/workspaces@2021-06-01' = {
-  name: 'law-${environment}-${uniqueString(rg.id)}'
-  location: location
-  properties: {
-    retentionInDays: 30
-    features: {
-      enableLogAccessUsingOnlyResourcePermissions: true
-    }
-    sku: {
-      name: 'PerGB2018'
-    }
-  }
+// Deploy Log Analytics at RG scope (module, not resource-with-scope)
+module logAnalytics 'modules/loganalytics.bicep' = {
+  name: 'loganalytics-${rgName}'
   scope: rg
+  params: {
+    workspaceName: 'law-${environment}-${uniqueString(rg.id)}'
+    location: location
+  }
 }
 
-// Deploy the Key Vault into the RG
+// Deploy Key Vault at RG scope
 module keyVault './kv.module.bicep' = {
   name: 'kv-${environment}'
   scope: rg
@@ -44,11 +38,11 @@ module keyVault './kv.module.bicep' = {
     service: 'integration-technology'
     workload: 'gateway'
     onPremIpRanges: onPremIpRanges
-    logAnalyticsWorkspaceResourceId: law.id
+    logAnalyticsWorkspaceResourceId: logAnalytics.outputs.workspaceId
     skuName: 'standard'
   }
 }
 
 output resourceGroupName string = rg.name
-output logAnalyticsWorkspaceId string = law.id
+output logAnalyticsWorkspaceId string = logAnalytics.outputs.workspaceId
 output keyVaultName string = keyVault.outputs.keyVaultName
