@@ -26,17 +26,9 @@ jobs:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Deploy Enercare Template
-        if: ${{ github.event.inputs.template == 'enercare' }}
         run: |
-          az deployment sub create \
-            --location canadacentral \
+          az group create -n rg-enercare-${{ github.event.inputs.environment }} -l canadacentral
+          az deployment group create \
+            --resource-group rg-enercare-${{ github.event.inputs.environment }} \
             --template-file bicep/_Base.ProficiencyTest.bicep \
             --parameters @bicep/parameters/${{ github.event.inputs.environment }}.parameters.json
-
-      - name: Deploy Bonus Template
-        if: ${{ github.event.inputs.template == 'bonus' }}
-        run: |
-          az deployment sub create \
-            --location canadacentral \
-            --template-file bicep/bonus-governed-infra.bicep \
-            --parameters @bicep/parameters/bonus.parameters.json
