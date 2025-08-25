@@ -21,7 +21,7 @@ param logAnalyticsWorkspaceResourceId string
 param skuName string = 'standard'
 
 //
-// Keep naming.bicep for consistency / demonstration
+// Keep naming.bicep for reference only (cannot drive resource name directly)
 //
 module naming './naming.bicep' = {
   name: 'naming-${uniqueString(resourceGroup().id, service, workload, environment)}'
@@ -34,7 +34,7 @@ module naming './naming.bicep' = {
   }
 }
 
-// ⚠ Resource names cannot use module outputs directly, so we reapply the convention inline.
+// Compute KV name inline (compile‑time safe)
 var keyVaultName = 'kv-${substring(service,0,3)}-${substring(workload,0,2)}-${environment}-${substring(location,0,2)}'
 
 // Normalize environment
@@ -50,7 +50,7 @@ var isDev  = env == 'dev'
 var isSbx  = env == 'sandbox'
 
 var purgeProtectionEnabled = isProd
-var retentionDays = isProd ? 14 : (isUat ? 7 : 7) // dev/sbx forced minimum 7 days
+var retentionDays = isProd ? 14 : (isUat ? 7 : 7) // dev/sbx forced to 7 days due to AKV minimum
 
 //
 // Key Vault
@@ -59,10 +59,11 @@ resource kv 'Microsoft.KeyVault/vaults@2023-07-01' = {
   name: keyVaultName
   location: location
   tags: {
-    'enercare:service' : service
-    'enercare:workload': workload
+    'enercare:service'    : service
+    'enercare:workload'   : workload
     'enercare:environment': env
-    'enercare:namingRef': naming.outputs.name // reference output from library
+    // 🚫 Do NOT use naming.outputs.* here (deployment-time). 
+    // If you want, you can just echo it as an output later.
   }
   properties: {
     tenantId: subscription().tenantId
@@ -75,7 +76,7 @@ resource kv 'Microsoft.KeyVault/vaults@2023-07-01' = {
     networkAcls: {
       bypass: 'AzureServices'
       defaultAction: 'Deny'
-      ipRules: [for cidr in onPremIpRanges: { value: cidr }]
+      ipRules: [ for cidr in onPremIpRanges: { value: cidr } ]
       virtualNetworkRules: []
     }
     sku: {
@@ -98,20 +99,26 @@ resource diag 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
       {
         category: 'AuditEvent'
         enabled: true
-        retentionPolicy: { enabled: false days: 0 }
+        retentionPolicy: {
+          enabled: false
+          days: 0
+        }
       }
     ]
     metrics: [
       {
         category: 'AllMetrics'
         enabled: true
-        retentionPolicy: { enabled: false days: 0 }
+        retentionPolicy: {
+          enabled: false
+          days: 0
+        }
       }
     ]
   }
 }
 
-// Outputs (so _Base can reference)
+// Outputs (so _Base can reference both the KV + naming lib)
 output keyVaultName string = kv.name
 output keyVaultResourceId string = kv.id
 output namingLibraryExample string = naming.outputs.name
