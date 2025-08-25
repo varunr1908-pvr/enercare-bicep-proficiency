@@ -1,8 +1,11 @@
 {
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
   "parameters": {
-    "rgName": { "value": "rg-enercare-dev" },
-    "location": { "value": "canadacentral" },
     "environment": { "value": "dev" },
-    "onPremIpRanges": { "value": ["203.0.113.0/24", "198.51.100.0/25"] }
+    "onPremIpRanges": { "value": ["203.0.113.0/24"] },
+    "logAnalyticsWorkspaceResourceId": {
+      "value": "/subscriptions/4d7e1d65-87b3-4963-bf2c-9768369af86a/resourceGroups/rg-enercare-dev/providers/Microsoft.OperationalInsights/workspaces/law-dev-fa6bc766wdz22"
+    }
   }
 }
