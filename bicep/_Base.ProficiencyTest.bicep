@@ -65,6 +65,11 @@ module keyVault './kv.module.bicep' = {
   }
 }
 
+// Create an *existing* resource symbol for the deployed KV so that extension resources can scope to it.
+resource kvTarget 'Microsoft.KeyVault/vaults@2023-07-01' existing = {
+  name: keyVaultName
+}
+
 // ------------------------------
 /* Diagnostics for Key Vault (optional)
    Requires a valid Log Analytics Workspace resource ID.
@@ -73,7 +78,7 @@ module keyVault './kv.module.bicep' = {
 // ------------------------------
 resource kvDiag 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (!empty(logAnalyticsWorkspaceResourceId)) {
   name: 'kv-diags'
-  scope: keyVault
+  scope: kvTarget
   properties: {
     workspaceId: logAnalyticsWorkspaceResourceId
     logs: [
