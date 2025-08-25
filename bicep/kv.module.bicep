@@ -16,7 +16,6 @@ param onPremIpRanges array
 @description('Resource ID of the target Log Analytics Workspace for diagnostics')
 param logAnalyticsWorkspaceResourceId string
 
-@allowed([ 'standard' 'premium' ])
 @description('Key Vault SKU. Standard is typical.')
 param skuName string = 'standard'
 
