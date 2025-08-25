@@ -1,27 +1,107 @@
 targetScope = 'resourceGroup'
 
-@description('Deployment environment (dev, uat, prod)')
+@description('Deployment environment (e.g., dev, uat, prod)')
+@allowed([ 'dev', 'uat', 'prod' ])
 param environment string
 
-@description('Location')
+@description('Azure location for all resources unless overridden')
 param location string = 'canadacentral'
 
-@description('On-prem IP CIDRs')
-param onPremIpRanges array
+@description('Service or product area (e.g., enercare)')
+param service string
 
-@description('Log Analytics Workspace Resource ID')
-param logAnalyticsWorkspaceResourceId string
+@description('Workload or application name (e.g., gateway)')
+param workload string
 
-// Call the Key Vault module
-module kv './kv.module.bicep' = {
-  name: 'kv-${environment}'
+@description('On-premises IP CIDRs for allow-listing (optional)')
+param onPremIpRanges array = []
+
+@description('Log Analytics Workspace resource ID for diagnostics (optional)')
+param logAnalyticsWorkspaceResourceId string = ''
+
+@description('Additional tags to apply to all resources (optional)')
+param extraTags object = {}
+
+@description('Key Vault SKU')
+@allowed([ 'standard', 'premium' ])
+param keyVaultSku string = 'standard'
+
+// ------------------------------
+// Naming & tags (safe for non-name properties)
+// ------------------------------
+module naming './naming.bicep' = {
+  name: 'naming-helper'
   params: {
-    location: location
+    service: service
+    workload: workload
     environment: environment
-    service: 'integration-technology'
-    workload: 'gateway'
-    onPremIpRanges: onPremIpRanges
-    logAnalyticsWorkspaceResourceId: logAnalyticsWorkspaceResourceId
-    skuName: 'standard'
+    location: location
   }
 }
+
+// Merge common tags
+var baseTags = union(naming.outputs.tags, extraTags)
+
+// ------------------------------
+// Deterministic Key Vault name (BCP120-safe)
+// ------------------------------
+var kvBase = toLower('${substring(service, 0, 6)}${substring(workload, 0, 6)}${substring(environment, 0, 4)}${substring(location, 0, 2)}')
+var kvHash = uniqueString(subscription().id, resourceGroup().id)
+var keyVaultName = substring('${kvBase}${kvHash}', 0, 24)
+
+// ------------------------------
+// Key Vault
+// ------------------------------
+module keyVault './kv.module.bicep' = {
+  name: 'kv-deploy'
+  params: {
+    location: location
+    keyVaultName: keyVaultName
+    tags: baseTags
+    skuName: keyVaultSku
+    publicNetworkAccess: 'Enabled'
+    enableSoftDelete: true
+    enablePurgeProtection: true
+  }
+}
+
+// ------------------------------
+/* Diagnostics for Key Vault (optional)
+   Requires a valid Log Analytics Workspace resource ID.
+   If not provided, the diagnostic settings resource is skipped.
+*/
+// ------------------------------
+resource kvDiag 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (!empty(logAnalyticsWorkspaceResourceId)) {
+  name: 'kv-diags'
+  scope: keyVault
+  properties: {
+    workspaceId: logAnalyticsWorkspaceResourceId
+    logs: [
+      {
+        category: 'AuditEvent'
+        enabled: true
+        retentionPolicy: {
+          enabled: false
+          days: 0
+        }
+      }
+    ]
+    metrics: [
+      {
+        category: 'AllMetrics'
+        enabled: true
+        retentionPolicy: {
+          enabled: false
+          days: 0
+        }
+      }
+    ]
+  }
+}
+
+// ------------------------------
+// Outputs
+// ------------------------------
+output keyVaultNameOut string = keyVaultName
+output keyVaultIdOut string = keyVault.outputs.resourceId
+output tagsOut object = baseTags
