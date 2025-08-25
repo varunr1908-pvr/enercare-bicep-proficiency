@@ -1,5 +1,3 @@
-# enercare-bicep-proficiency
-
 # Enercare Bicep Proficiency Test
 
 This repo contains my solution for the **Enercare Key Vault Proficiency Test**.  
