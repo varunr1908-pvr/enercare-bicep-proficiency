@@ -13,5 +13,5 @@ param environment string
 @description('Location')
 param location string
 
-// Example: kv-int-gw-dev-cc
+// Same convention used inline in kv.module.bicep for resource name
 output name string = '${resourceType}-${substring(service,0,3)}-${substring(workload,0,2)}-${environment}-${substring(location,0,2)}'
