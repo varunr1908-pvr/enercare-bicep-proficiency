@@ -3,11 +3,11 @@
   "contentVersion": "1.0.0.0",
   "parameters": {
     "environment": { "value": "dev" },
-    "service": { "value": "enercare" },       
+    "service": { "value": "enercare1" },       
     "workload": { "value": "gateway" }, 
     "onPremIpRanges": { "value": ["203.0.113.0/24"] },
     "logAnalyticsWorkspaceResourceId": {
-      "value": "/subscriptions/4d7e1d65-87b3-4963-bf2c-9768369af86a/resourceGroups/rg-enercare-dev/providers/Microsoft.OperationalInsights/workspaces/law-dev-fa6bc766wdz22"
+      "value": ""
     }
   }
 }

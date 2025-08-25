@@ -26,9 +26,28 @@ jobs:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Deploy Enercare Template
+        if: ${{ github.event.inputs.template == 'enercare' }}
+        shell: bash
         run: |
-          az group create -n rg-enercare-${{ github.event.inputs.environment }} -l canadacentral
+          set -euo pipefail
+
+          ENV="${{ github.event.inputs.environment }}"
+          RG="rg-enercare-${ENV}"
+          LOCATION="canadacentral"
+
+          az group create -n "$RG" -l "$LOCATION" --only-show-errors --output none
+
+          # If your dev.parameters.json already defines service/workload, you can drop the two inline params below.
           az deployment group create \
-            --resource-group rg-enercare-${{ github.event.inputs.environment }} \
+            --resource-group "$RG" \
             --template-file bicep/_Base.ProficiencyTest.bicep \
-            --parameters @bicep/parameters/${{ github.event.inputs.environment }}.parameters.json
+            --parameters @bicep/parameters/${ENV}.parameters.json \
+            --only-show-errors --output jsonc
+
+      # Example placeholder if you later add a bonus template:
+      - name: Deploy Bonus Template
+        if: ${{ github.event.inputs.template == 'bonus' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Bonus template not implemented yet."
