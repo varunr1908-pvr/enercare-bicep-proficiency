@@ -1,0 +1,45 @@
+name: Deploy Bicep Templates
+
+on:
+  workflow_dispatch:
+    inputs:
+      template:
+        description: "Choose which template to deploy (enercare or bonus)"
+        required: true
+        default: "enercare"
+      environment:
+        description: "Target environment (dev, uat, prod)"
+        required: false
+        default: "dev"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Log in to Azure
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Set subscription
+        run: az account set --subscription "Varun-Test"
+
+      - name: Deploy Enercare Template
+        if: ${{ github.event.inputs.template == 'enercare' }}
+        run: |
+          az deployment sub create \
+            --location canadacentral \
+            --template-file bicep/_Base.ProficiencyTest.bicep \
+            --parameters @bicep/parameters/${{ github.event.inputs.environment }}.parameters.json
+
+      - name: Deploy Bonus Template
+        if: ${{ github.event.inputs.template == 'bonus' }}
+        run: |
+          az deployment sub create \
+            --location canadacentral \
+            --template-file bicep/bonus-governed-infra.bicep \
+            --parameters @bicep/parameters/bonus.parameters.json
