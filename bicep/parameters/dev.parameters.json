@@ -3,11 +3,13 @@
   "contentVersion": "1.0.0.0",
   "parameters": {
     "environment": { "value": "dev" },
-    "service": { "value": "enercare1" },       
-    "workload": { "value": "gateway" }, 
-    "onPremIpRanges": { "value": ["203.0.113.0/24"] },
+    "onPremIpRanges": {
+      "value": [
+        "203.0.113.0/24"
+      ]
+    },
     "logAnalyticsWorkspaceResourceId": {
-      "value": ""
+      "value": "" 
     }
   }
 }
