@@ -25,9 +25,6 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Set subscription
-        run: az account set --subscription "Varun-Test"
-
       - name: Deploy Enercare Template
         if: ${{ github.event.inputs.template == 'enercare' }}
         run: |
