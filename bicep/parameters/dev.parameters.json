@@ -3,6 +3,6 @@
     "rgName": { "value": "rg-enercare-dev" },
     "location": { "value": "canadacentral" },
     "environment": { "value": "dev" },
-    "onPremIpRanges": { "value": ["203.0.113.0/24"] }
+    "onPremIpRanges": { "value": ["203.0.113.0/24", "198.51.100.0/25"] }
   }
 }

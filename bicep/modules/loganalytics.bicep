@@ -15,9 +15,7 @@ resource law 'Microsoft.OperationalInsights/workspaces@2022-10-01' = {
       searchVersion: 1
       enableLogAccessUsingOnlyResourcePermissions: true
     }
-    sku: {
-      name: 'PerGB2018'
-    }
+    sku: { name: 'PerGB2018' }
   }
 }
 

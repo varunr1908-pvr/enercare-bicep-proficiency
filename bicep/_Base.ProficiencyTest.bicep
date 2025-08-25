@@ -1,24 +1,24 @@
 targetScope = 'subscription'
 
 @description('Name of the resource group to create')
-param rgName string = 'rg-enercare-test'
+param rgName string = 'rg-enercare-dev'
 
 @description('Azure region')
 param location string = 'canadacentral'
 
-@description('Deployment environment (dev, uat, prod)')
+@description('Deployment environment (dev, uat, prod, sandbox, etc.)')
 param environment string
 
 @description('On-premises IP CIDR ranges allowed')
 param onPremIpRanges array
 
-// Create (or ensure) the resource group
+// Create or ensure the RG
 resource rg 'Microsoft.Resources/resourceGroups@2022-09-01' = {
   name: rgName
   location: location
 }
 
-// Deploy Log Analytics at RG scope (module, not resource-with-scope)
+// Log Analytics (RG-scoped via module)
 module logAnalytics 'modules/loganalytics.bicep' = {
   name: 'loganalytics-${rgName}'
   scope: rg
@@ -28,7 +28,7 @@ module logAnalytics 'modules/loganalytics.bicep' = {
   }
 }
 
-// Deploy Key Vault at RG scope
+// Key Vault (RG-scoped via module)
 module keyVault './kv.module.bicep' = {
   name: 'kv-${environment}'
   scope: rg
