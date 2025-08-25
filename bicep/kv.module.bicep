@@ -1,27 +1,17 @@
-@description('Azure region for deployment')
 param location string = 'canadacentral'
 
-@description('Environment code. Expected: dev, uat, prod, sandbox')
 param environment string
 
-@description('Service name per Enercare naming')
 param service string
 
-@description('Workload name per Enercare naming')
 param workload string
 
-@description('On-prem IPv4 CIDR ranges allowed to access Key Vault')
 param onPremIpRanges array
 
-@description('Resource ID of the target Log Analytics Workspace for diagnostics')
 param logAnalyticsWorkspaceResourceId string
 
-@description('Key Vault SKU. Standard is typical.')
 param skuName string = 'standard'
 
-//
-// Keep naming.bicep for reference only (cannot drive resource name directly)
-//
 module naming './naming.bicep' = {
   name: 'naming-${uniqueString(resourceGroup().id, service, workload, environment)}'
   params: {
@@ -33,16 +23,12 @@ module naming './naming.bicep' = {
   }
 }
 
-// Compute KV name inline (compile‑time safe)
 var keyVaultName = 'kv-${substring(service,0,3)}-${substring(workload,0,2)}-${environment}-${substring(location,0,2)}'
 
-// Normalize environment
 var env = toLower(environment)
 
-// RBAC-only auth
 var enableRbac = true
 
-// Env-based purge/retention rules
 var isProd = env == 'prod' || env == 'production'
 var isUat  = env == 'uat' || env == 'test'
 var isDev  = env == 'dev'
@@ -51,9 +37,7 @@ var isSbx  = env == 'sandbox'
 var purgeProtectionEnabled = isProd
 var retentionDays = isProd ? 14 : (isUat ? 7 : 7) // dev/sbx forced to 7 days due to AKV minimum
 
-//
 // Key Vault
-//
 resource kv 'Microsoft.KeyVault/vaults@2023-07-01' = {
   name: keyVaultName
   location: location
@@ -61,8 +45,6 @@ resource kv 'Microsoft.KeyVault/vaults@2023-07-01' = {
     'enercare:service'    : service
     'enercare:workload'   : workload
     'enercare:environment': env
-    // 🚫 Do NOT use naming.outputs.* here (deployment-time). 
-    // If you want, you can just echo it as an output later.
   }
   properties: {
     tenantId: subscription().tenantId
@@ -86,9 +68,7 @@ resource kv 'Microsoft.KeyVault/vaults@2023-07-01' = {
   }
 }
 
-//
 // Diagnostics to LAW
-//
 resource diag 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
   name: 'ds-${kv.name}'
   scope: kv
@@ -117,7 +97,6 @@ resource diag 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
   }
 }
 
-// Outputs (so _Base can reference both the KV + naming lib)
 output keyVaultName string = kv.name
 output keyVaultResourceId string = kv.id
 output namingLibraryExample string = naming.outputs.name
