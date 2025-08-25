@@ -1,50 +1,99 @@
 @description('Azure region for deployment')
 param location string
 
-@description('Key Vault name (must be 3-24 chars; lowercase letters and numbers only; globally unique)')
-param keyVaultName string
+@description('Environment (dev, uat, prod, sandbox)')
+param environment string
 
-@description('Tenant ID for access policies (optional if using RBAC)')
-@allowed([ '', 'use-rbac' ])
-param accessPolicyMode string = 'use-rbac'
+@description('Service name for naming convention')
+param service string
 
-@description('SKU name for Key Vault')
-@allowed([ 'standard', 'premium' ])
+@description('Workload name for naming convention')
+param workload string
+
+@description('On-premises IP CIDR ranges allowed')
+param onPremIpRanges array
+
+@description('Log Analytics Workspace resource ID')
+param logAnalyticsWorkspaceResourceId string
+
+@description('SKU of the Key Vault (standard or premium)')
+@allowed([
+  'standard'
+  'premium'
+])
 param skuName string = 'standard'
 
-@description('Enables purge protection')
-param enablePurgeProtection bool = true
+// Naming module
+module naming './naming.bicep' = {
+  name: 'naming-${uniqueString(resourceGroup().id, service, workload, environment)}'
+  params: {
+    resourceType: 'kv'
+    service: service
+    workload: workload
+    environment: environment
+    location: location
+  }
+}
 
-@description('Enables soft delete')
-param enableSoftDelete bool = true
+var keyVaultName = naming.outputs.name
+var env = toLower(environment)
 
-@description('Public network access')
-@allowed([ 'Enabled', 'Disabled' ])
-param publicNetworkAccess string = 'Enabled'
+// Environment rules
+var isProd = env == 'prod' || env == 'production'
+var isUat  = env == 'uat' || env == 'test'
+var isDev  = env == 'dev' || env == 'development'
+var isSbx  = env == 'sandbox'
 
-// Tags passed from caller
-param tags object = {}
+var purgeProtectionEnabled = isProd
+var retentionDays = isProd ? 14 : (isUat ? 7 : 7) // Dev/Sandbox forced to 7 due to Azure minimum
 
+// Key Vault
 resource kv 'Microsoft.KeyVault/vaults@2023-07-01' = {
   name: keyVaultName
   location: location
-  tags: tags
   properties: {
-    enabledForDeployment: false
+    tenantId: subscription().tenantId
+    enableRbacAuthorization: true
     enabledForTemplateDeployment: false
+    enabledForDeployment: false
     enabledForDiskEncryption: false
-    enableSoftDelete: enableSoftDelete
-    enablePurgeProtection: enablePurgeProtection
-    publicNetworkAccess: publicNetworkAccess
+    softDeleteRetentionInDays: retentionDays
+    purgeProtectionEnabled: purgeProtectionEnabled
     sku: {
       family: 'A'
       name: skuName
     }
-    tenantId: subscription().tenantId
-    // No access policies here when using RBAC; caller can create separate role assignments if needed
-    accessPolicies: accessPolicyMode == 'use-rbac' ? [] : []
+    networkAcls: {
+      bypass: 'AzureServices'
+      defaultAction: 'Deny'
+      ipRules: [
+        for cidr in onPremIpRanges: {
+          value: cidr
+        }
+      ]
+      virtualNetworkRules: []
+    }
+    publicNetworkAccess: 'Enabled'
   }
 }
 
-output name string = kv.name
-output resourceId string = kv.id
+// Diagnostics
+resource diag 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
+  name: 'ds-${kv.name}'
+  scope: kv
+  properties: {
+    workspaceId: logAnalyticsWorkspaceResourceId
+    logs: [
+      {
+        category: 'AuditEvent'
+        enabled: true
+        retentionPolicy: {
+          enabled: false
+          days: 0
+        }
+      }
+    ]
+  }
+}
+
+output keyVaultName string = kv.name
